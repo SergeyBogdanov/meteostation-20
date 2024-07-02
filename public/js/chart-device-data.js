@@ -4,7 +4,7 @@
 $(document).ready(() => {
   // if deployed to a site supporting SSL, use wss://
   const protocol = document.location.protocol.startsWith('https') ? 'wss://' : 'ws://';
-  const webSocket = new WebSocket(protocol + location.host);
+    let webSocket = null;//new WebSocket(protocol + location.host);
 
   // A class for holding the last N points of telemetry for a device
   class DeviceData {
@@ -138,54 +138,60 @@ $(document).ready(() => {
   }
   listOfDevices.addEventListener('change', OnSelectionChange, false);
 
-  // When a web socket message arrives:
-  // 1. Unpack it
-  // 2. Validate it has date/time and temperature
-  // 3. Find or create a cached device to hold the telemetry data
-  // 4. Append the telemetry data
-  // 5. Update the chart UI
-  webSocket.onmessage = function onMessage(message) {
-    try {
-      const messageData = JSON.parse(message.data);
-      console.log(messageData);
+    function setUpWebSocket() {
+        webSocket = new WebSocket(protocol + location.host);
 
-      // time and either temperature or humidity are required
-        if (!messageData.MessageDate || (!messageData.IotData.temp_internal && !messageData.IotData.humidity_internal)) {
-        return;
-      }
+        // When a web socket message arrives:
+        // 1. Unpack it
+        // 2. Validate it has date/time and temperature
+        // 3. Find or create a cached device to hold the telemetry data
+        // 4. Append the telemetry data
+        // 5. Update the chart UI
+        webSocket.onmessage = function onMessage(message) {
+            try {
+                const messageData = JSON.parse(message.data);
+                console.log(messageData);
 
-      // find or add device to list of tracked devices
-      const existingDeviceData = trackedDevices.findDevice(messageData.DeviceId);
+                // time and either temperature or humidity are required
+                if (!messageData.MessageDate || (!messageData.IotData.temp_internal && !messageData.IotData.humidity_internal)) {
+                    return;
+                }
 
-      if (existingDeviceData) {
-          existingDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
-      } else {
-        const newDeviceData = new DeviceData(messageData.DeviceId);
-        trackedDevices.devices.push(newDeviceData);
-        const numDevices = trackedDevices.getDevicesCount();
-        deviceCount.innerText = numDevices === 1 ? `${numDevices} device` : `${numDevices} devices`;
-          newDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
+                // find or add device to list of tracked devices
+                const existingDeviceData = trackedDevices.findDevice(messageData.DeviceId);
 
-        // add device to the UI list
-        const node = document.createElement('option');
-        const nodeText = document.createTextNode(messageData.DeviceId);
-        node.appendChild(nodeText);
-        listOfDevices.appendChild(node);
+                if (existingDeviceData) {
+                    existingDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
+                } else {
+                    const newDeviceData = new DeviceData(messageData.DeviceId);
+                    trackedDevices.devices.push(newDeviceData);
+                    const numDevices = trackedDevices.getDevicesCount();
+                    deviceCount.innerText = numDevices === 1 ? `${numDevices} device` : `${numDevices} devices`;
+                    newDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
 
-        // if this is the first device being discovered, auto-select it
-        if (needsAutoSelect) {
-          needsAutoSelect = false;
-          listOfDevices.selectedIndex = 0;
-          OnSelectionChange();
-        }
-      }
+                    // add device to the UI list
+                    const node = document.createElement('option');
+                    const nodeText = document.createTextNode(messageData.DeviceId);
+                    node.appendChild(nodeText);
+                    listOfDevices.appendChild(node);
 
-      myLineChart.update();
-    } catch (err) {
-      console.error(err);
+                    // if this is the first device being discovered, auto-select it
+                    if (needsAutoSelect) {
+                        needsAutoSelect = false;
+                        listOfDevices.selectedIndex = 0;
+                        OnSelectionChange();
+                    }
+                }
+
+                myLineChart.update();
+            } catch (err) {
+                console.error(err);
+            }
+        };
+        webSocket.onclose = () => {
+            console.log('The WebSocket just closed. Trying to reopen');
+            setUpWebSocket();
+        };
     }
-    };
-    webSocket.onclose = () => {
-        console.log('The WebSocket just closed');
-    };
+    setUpWebSocket();
 });
