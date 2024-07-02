@@ -184,5 +184,8 @@ $(document).ready(() => {
     } catch (err) {
       console.error(err);
     }
-  };
+    };
+    webSocket.onclose = () => {
+        console.log('The WebSocket just closed');
+    };
 });
