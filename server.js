@@ -3,6 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
 const EventHubReader = require('./scripts/event-hub-reader.js');
+const PersistStorage = require('./scripts/persist-storage');
 
 const iotHubConnectionString = process.env.IotHubConnectionString;
 if (!iotHubConnectionString) {
@@ -18,6 +19,22 @@ if (!eventHubConsumerGroup) {
   return;
 }
 console.log(`Using event hub consumer group [${eventHubConsumerGroup}]`);
+
+const storageAccountName = process.env.StorageAccountName;
+if (!storageAccountName) {
+    console.error(`Environment variable StorageAccountName must be specified.`);
+    return;
+}
+
+const storageAccountKey = process.env.StorageAccountAccessKey;
+if (!storageAccountKey) {
+    console.error(`Environment variable StorageAccountAccessKey must be specified.`);
+    return;
+}
+console.log(`Using storage [${storageAccountName}], [${storageAccountKey}]`);
+
+const storage = new PersistStorage(storageAccountName, storageAccountKey, 'MeteostationMessages', 'MeteoData');
+storage.connect();
 
 // Redirect requests to the public subdirectory to the root
 const app = express();
@@ -58,6 +75,7 @@ const eventHubReader = new EventHubReader(iotHubConnectionString, eventHubConsum
       };
 
       wss.broadcast(JSON.stringify(payload));
+      storage.storeData(payload);
     } catch (err) {
       console.error('Error broadcasting: [%s] from [%s].', err, message);
     }
