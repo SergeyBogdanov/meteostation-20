@@ -136,7 +136,35 @@ $(document).ready(() => {
     chartData.datasets[1].data = device.humidityData;
     myLineChart.update();
   }
-  listOfDevices.addEventListener('change', OnSelectionChange, false);
+    listOfDevices.addEventListener('change', OnSelectionChange, false);
+
+    function addDataPoint(messageData) {
+        // find or add device to list of tracked devices
+        const existingDeviceData = trackedDevices.findDevice(messageData.DeviceId);
+
+        if (existingDeviceData) {
+            existingDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
+        } else {
+            const newDeviceData = new DeviceData(messageData.DeviceId);
+            trackedDevices.devices.push(newDeviceData);
+            const numDevices = trackedDevices.getDevicesCount();
+            deviceCount.innerText = numDevices === 1 ? `${numDevices} device` : `${numDevices} devices`;
+            newDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
+
+            // add device to the UI list
+            const node = document.createElement('option');
+            const nodeText = document.createTextNode(messageData.DeviceId);
+            node.appendChild(nodeText);
+            listOfDevices.appendChild(node);
+
+            // if this is the first device being discovered, auto-select it
+            if (needsAutoSelect) {
+                needsAutoSelect = false;
+                listOfDevices.selectedIndex = 0;
+                OnSelectionChange();
+            }
+        }
+    }
 
     function setUpWebSocket() {
         webSocket = new WebSocket(protocol + location.host);
@@ -157,31 +185,7 @@ $(document).ready(() => {
                     return;
                 }
 
-                // find or add device to list of tracked devices
-                const existingDeviceData = trackedDevices.findDevice(messageData.DeviceId);
-
-                if (existingDeviceData) {
-                    existingDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
-                } else {
-                    const newDeviceData = new DeviceData(messageData.DeviceId);
-                    trackedDevices.devices.push(newDeviceData);
-                    const numDevices = trackedDevices.getDevicesCount();
-                    deviceCount.innerText = numDevices === 1 ? `${numDevices} device` : `${numDevices} devices`;
-                    newDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
-
-                    // add device to the UI list
-                    const node = document.createElement('option');
-                    const nodeText = document.createTextNode(messageData.DeviceId);
-                    node.appendChild(nodeText);
-                    listOfDevices.appendChild(node);
-
-                    // if this is the first device being discovered, auto-select it
-                    if (needsAutoSelect) {
-                        needsAutoSelect = false;
-                        listOfDevices.selectedIndex = 0;
-                        OnSelectionChange();
-                    }
-                }
+                addDataPoint(messageData);
 
                 myLineChart.update();
             } catch (err) {
@@ -194,4 +198,19 @@ $(document).ready(() => {
         };
     }
     setUpWebSocket();
+
+    function displayHistoryData(dataArray) {
+        if (Array.isArray(dataArray)) {
+            for (const data of dataArray) {
+                addDataPoint(data);
+            }
+            myLineChart.update();
+        }
+    }
+
+    function requestHistoryData() {
+        $.ajax({ url: `/history/${24 * 60}` }).done(displayHistoryData);
+    }
+
+    requestHistoryData();
 });

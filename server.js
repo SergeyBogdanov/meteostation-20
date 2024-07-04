@@ -36,9 +36,16 @@ console.log(`Using storage [${storageAccountName}], [${storageAccountKey}]`);
 const storage = new PersistStorage(storageAccountName, storageAccountKey, 'MeteostationMessages', 'MeteoData');
 storage.connect();
 
+async function respondHistoryData(req, res, next) {
+    let historyDepthMin = parseInt(req.params.depth);
+    let historicalData = await storage.getHistoryData(historyDepthMin);
+    res.json(historicalData || []);
+}
+
 // Redirect requests to the public subdirectory to the root
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/history/:depth', respondHistoryData);
 app.use((req, res /* , next */) => {
   res.redirect('/');
 });

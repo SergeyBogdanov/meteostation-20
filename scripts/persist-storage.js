@@ -1,4 +1,4 @@
-const { AzureNamedKeyCredential, TableClient } = require("@azure/data-tables");
+const { AzureNamedKeyCredential, TableClient, odata } = require("@azure/data-tables");
 
 const LastKeysStoragePartitionKey = 'LastKeysStorage';
 const LastKeysStorageRowKey = 'Latest';
@@ -33,6 +33,26 @@ class PersistStorage {
         }
     }
 
+    async getHistoryData(depthMinutes) {
+        let result = undefined;
+        if (this.client) {
+            let filterDate = new Date(Date.now() - depthMinutes * 60 * 1000);
+            const tableEntities = await this.client.listEntities({
+                queryOptions: {
+                    filter: odata`Timestamp ge datetime${filterDate.toJSON()} and PartitionKey eq ${this.entityName}`
+                }
+            });
+            result = [];
+            for await (const entity of tableEntities) {
+                result.push(JSON.parse(entity.payload));
+            }
+            result.sort((a, b) => a.MessageDate > b.MessageDate ? 1 : -1);
+            result = result.filter((item, i) => (i + 1) >= result.length ||
+                (item.MessageDate != result[i + 1].MessageDate || item.DeviceId != result[i + 1].DeviceId));
+        }
+        return result;
+    }
+
     async getLastKeyValue() {
         let result = 0;
         if (this.client) {
@@ -47,7 +67,11 @@ class PersistStorage {
         if (this.client) {
             let lastKeysEntity = await this.getSafeKeyHolderEntity();
             lastKeysEntity[this.entityName + 'Key'] = keyValue;
-            result = await this.client.upsertEntity(lastKeysEntity, 'Replace');
+            try {
+                result = await this.client.upsertEntity(lastKeysEntity, 'Replace');
+            } catch (err) {
+                console.error('Some error has risen [%s]', err);
+            }
         }
         return result && result.ETag;
     }
