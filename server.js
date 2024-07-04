@@ -37,7 +37,7 @@ const storage = new PersistStorage(storageAccountName, storageAccountKey, 'Meteo
 storage.connect();
 
 async function respondHistoryData(req, res, next) {
-    let historyDepthMin = parseInt(req.params.depth);
+    let historyDepthMin = parseInt(req.params.depth) || 0;
     let historicalData = await storage.getHistoryData(historyDepthMin);
     res.json(historicalData || []);
 }
