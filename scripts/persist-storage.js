@@ -24,13 +24,19 @@ class PersistStorage {
         let result = undefined;
         if (this.client) {
             const newKeyValue = (await this.getLastKeyValue()) + 1;
-            result = await this.client.createEntity({
+            const newData = {
                 partitionKey: this.entityName,
                 rowKey: '' + newKeyValue,
                 payload: JSON.stringify(data)
-            });
+            };
+            result = await this.client.createEntity(newData);
             await this.setLastKeyValue(newKeyValue);
+            this.deleteTheSameData(newData);
         }
+    }
+
+    isTheSamePayload(payload1, payload2) {
+        return payload1.MessageDate === payload2.MessageDate && payload1.DeviceId === payload2.DeviceId;
     }
 
     async getHistoryData(depthMinutes) {
@@ -47,10 +53,43 @@ class PersistStorage {
                 result.push(JSON.parse(entity.payload));
             }
             result.sort((a, b) => a.MessageDate > b.MessageDate ? 1 : -1);
-            result = result.filter((item, i) => (i + 1) >= result.length ||
-                (item.MessageDate != result[i + 1].MessageDate || item.DeviceId != result[i + 1].DeviceId));
+            result = result.filter((item, i) => (i + 1) >= result.length || !this.isTheSamePayload(item, result[i + 1]));
         }
         return result;
+    }
+
+    async deleteTheSameData(masterData) {
+        if (this.client) {
+            let filterDate = new Date(Date.now() - 60 * 1000);
+            const tableEntities = await this.client.listEntities({
+                queryOptions: {
+                    filter: odata`Timestamp ge datetime${filterDate.toJSON()} and PartitionKey eq ${this.entityName}`
+                }
+            });
+            let keysToDelete = [];
+            const masterPayload = JSON.parse(masterData.payload);
+            const masterKey = parseInt(masterData.rowKey);
+            for await (const entity of tableEntities) {
+                let entityPayload = JSON.parse(entity.payload);
+                if (masterKey > parseInt(entity.rowKey) && this.isTheSamePayload(masterPayload, entityPayload)) {
+                    keysToDelete.push(entity.rowKey);
+                }
+            }
+            console.log('Deleting the same data on: [%s]', JSON.stringify(keysToDelete));
+            await this.deleteEntitiesByKeys(keysToDelete);
+        }
+    }
+
+    async deleteEntitiesByKeys(keys) {
+        if (this.client) {
+            for (const key of keys) {
+                try {
+                    await this.client.deleteEntity(this.entityName, key);
+                } catch (err) {
+                    console.error('Error is detected on deleting: [%s]', err);
+                }
+            }
+        }
     }
 
     async getLastKeyValue() {
