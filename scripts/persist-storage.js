@@ -2,8 +2,8 @@ const { AzureNamedKeyCredential, TableClient, odata } = require("@azure/data-tab
 
 const LastKeysStoragePartitionKey = 'LastKeysStorage';
 const LastKeysStorageRowKey = 'Latest';
-const KeepEntityAgeInDays = 1;
-const MaxNumberOfOldEntitiesToDelete = 30;
+const KeepEntityAgeInDays = 30;
+const MaxNumberOfOldEntitiesToDelete = 5;
 
 class PersistStorage {
 
@@ -67,7 +67,7 @@ class PersistStorage {
 
     async deleteOldEntities() {
         if (this.client) {
-            let filterDate = new Date(Date.now() - KeepEntityAgeInDays * 24 * 60 * 1000);
+            let filterDate = new Date(Date.now() - KeepEntityAgeInDays * 24 * 60 * 60 * 1000);
             const tableEntities = await this.client.listEntities({
                 queryOptions: {
                     filter: odata`Timestamp le datetime${filterDate.toJSON()} and PartitionKey eq ${this.entityName}`
