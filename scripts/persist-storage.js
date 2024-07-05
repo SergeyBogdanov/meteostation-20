@@ -29,9 +29,13 @@ class PersistStorage {
                 rowKey: '' + newKeyValue,
                 payload: JSON.stringify(data)
             };
-            result = await this.client.createEntity(newData);
-            await this.setLastKeyValue(newKeyValue);
-            this.deleteTheSameData(newData);
+            try {
+                result = await this.client.createEntity(newData);
+                await this.setLastKeyValue(newKeyValue);
+                this.deleteTheSameData(newData);
+            } catch (err) {
+                console.error('An error is detected on entity creating: [%s]', err);
+            }
         }
     }
 
@@ -75,7 +79,6 @@ class PersistStorage {
                     keysToDelete.push(entity.rowKey);
                 }
             }
-            console.log('Deleting the same data on: [%s]', JSON.stringify(keysToDelete));
             await this.deleteEntitiesByKeys(keysToDelete);
         }
     }
