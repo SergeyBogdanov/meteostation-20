@@ -2,6 +2,8 @@ const { AzureNamedKeyCredential, TableClient, odata } = require("@azure/data-tab
 
 const LastKeysStoragePartitionKey = 'LastKeysStorage';
 const LastKeysStorageRowKey = 'Latest';
+const KeepEntityAgeInDays = 1;
+const MaxNumberOfOldEntitiesToDelete = 30;
 
 class PersistStorage {
 
@@ -33,6 +35,7 @@ class PersistStorage {
                 result = await this.client.createEntity(newData);
                 await this.setLastKeyValue(newKeyValue);
                 this.deleteTheSameData(newData);
+                this.deleteOldEntities();
             } catch (err) {
                 console.error('An error is detected on entity creating: [%s]', err);
             }
@@ -60,6 +63,25 @@ class PersistStorage {
             result = result.filter((item, i) => (i + 1) >= result.length || !this.isTheSamePayload(item, result[i + 1]));
         }
         return result;
+    }
+
+    async deleteOldEntities() {
+        if (this.client) {
+            let filterDate = new Date(Date.now() - KeepEntityAgeInDays * 24 * 60 * 1000);
+            const tableEntities = await this.client.listEntities({
+                queryOptions: {
+                    filter: odata`Timestamp le datetime${filterDate.toJSON()} and PartitionKey eq ${this.entityName}`
+                }
+            });
+            let keysToDelete = [];
+            for await (const entity of tableEntities) {
+                keysToDelete.push(entity.rowKey);
+                if (keysToDelete.length >= MaxNumberOfOldEntitiesToDelete) {
+                    break;
+                }
+            }
+            await this.deleteEntitiesByKeys(keysToDelete);
+        }
     }
 
     async deleteTheSameData(masterData) {
