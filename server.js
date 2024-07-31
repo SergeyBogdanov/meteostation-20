@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const superagent = require('superagent');
 const EventHubReader = require('./scripts/event-hub-reader.js');
 const PersistStorage = require('./scripts/persist-storage');
 
@@ -13,7 +14,6 @@ if (!iotHubConnectionString) {
 console.log(`Using IoT Hub connection string [${iotHubConnectionString}]`);
 
 const eventHubConsumerGroup = process.env.EventHubConsumerGroup;
-console.log(eventHubConsumerGroup);
 if (!eventHubConsumerGroup) {
   console.error(`Environment variable EventHubConsumerGroup must be specified.`);
   return;
@@ -33,6 +33,13 @@ if (!storageAccountKey) {
 }
 console.log(`Using storage [${storageAccountName}], [${storageAccountKey}]`);
 
+const eventRelyServerUrl = process.env.EventRelayServerPingAddress;
+if (!eventRelyServerUrl) {
+    console.error(`Environment variable EventRelayServerPingAddress must be specified.`);
+//    return;
+}
+console.log(`Using event relay server on [${eventRelyServerUrl}]`);
+
 const storage = new PersistStorage(storageAccountName, storageAccountKey, 'MeteostationMessages', 'MeteoData');
 storage.connect();
 
@@ -42,10 +49,19 @@ async function respondHistoryData(req, res, next) {
     res.json(historicalData || []);
 }
 
+function pingRelayServer(req, res, next) {
+    if (eventRelyServerUrl) {
+        superagent.get(eventRelyServerUrl).end(() => {
+            console.log(`Ping event relay server [${eventRelyServerUrl}] is completed`);
+        });
+    }
+}
+
 // Redirect requests to the public subdirectory to the root
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/history/:depth', respondHistoryData);
+app.get('/ping_relay', pingRelayServer);
 app.use((req, res /* , next */) => {
   res.redirect('/');
 });
