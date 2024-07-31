@@ -49,14 +49,20 @@ async function respondHistoryData(req, res, next) {
     res.json(historicalData || []);
 }
 
-function pingRelayServer(req, res, next) {
-    let pingSent = 'no';
-    if (eventRelyServerUrl) {
-        superagent.get(eventRelyServerUrl).end(() => {
+function makePingRelayServer() {
+    const isPingPossible = !!eventRelyServerUrl;
+    if (isPingPossible) {
+        superagent.get(eventRelyServerUrl)
+            .query({ issued: Date.now() })
+            .end(() => {
             console.log(`Ping event relay server [${eventRelyServerUrl}] is completed`);
         });
-        pingSent = 'yes';
     }
+    return isPingPossible;
+}
+
+function pingRelayServer(req, res, next) {
+    const pingSent = makePingRelayServer() ? 'yes' : 'no';
     res.send(`Ping operation is completed. Ping request has sent: ${pingSent}`);
 }
 
@@ -107,3 +113,5 @@ const eventHubReader = new EventHubReader(iotHubConnectionString, eventHubConsum
     }
   });
 })().catch();
+
+makePingRelayServer();
