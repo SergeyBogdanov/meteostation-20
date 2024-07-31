@@ -50,11 +50,14 @@ async function respondHistoryData(req, res, next) {
 }
 
 function pingRelayServer(req, res, next) {
+    let pingSent = 'no';
     if (eventRelyServerUrl) {
         superagent.get(eventRelyServerUrl).end(() => {
             console.log(`Ping event relay server [${eventRelyServerUrl}] is completed`);
         });
+        pingSent = 'yes';
     }
+    res.send(`Ping operation is completed. Ping request has sent: ${pingSent}`);
 }
 
 // Redirect requests to the public subdirectory to the root
