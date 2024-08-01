@@ -107,7 +107,7 @@ const eventHubReader = new EventHubReader(iotHubConnectionString, eventHubConsum
       };
 
       wss.broadcast(JSON.stringify(payload));
-      storage.storeData(payload);
+      //storage.storeData(payload);
     } catch (err) {
       console.error('Error broadcasting: [%s] from [%s].', err, message);
     }
