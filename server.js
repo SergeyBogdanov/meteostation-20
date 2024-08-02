@@ -55,8 +55,8 @@ function makePingRelayServer() {
         superagent.get(eventRelyServerUrl)
             .query({ issued: Date.now() })
             .end(() => {
-            console.log(`Ping event relay server [${eventRelyServerUrl}] is completed`);
-        });
+                console.log(`Ping event relay server [${eventRelyServerUrl}] is completed`);
+            });
     }
     return isPingPossible;
 }
