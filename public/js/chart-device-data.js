@@ -14,17 +14,20 @@ $(document).ready(() => {
       this.timeData = new Array(this.maxLen);
       this.temperatureData = new Array(this.maxLen);
       this.humidityData = new Array(this.maxLen);
+      this.pressureData = new Array(this.maxLen);
     }
 
-    addData(time, temperature, humidity) {
+    addData(time, temperature, humidity, pressure) {
       this.timeData.push(time);
       this.temperatureData.push(temperature);
       this.humidityData.push(humidity || null);
+      this.pressureData.push(pressure);
 
       if (this.timeData.length > this.maxLen) {
         this.timeData.shift();
         this.temperatureData.shift();
         this.humidityData.shift();
+        this.pressureData.shift();
       }
     }
   }
@@ -46,38 +49,38 @@ $(document).ready(() => {
       return undefined;
     }
 
+      addDevice(deviceId) {
+          const newDeviceData = new DeviceData(deviceId);
+          this.devices.push(newDeviceData);
+          return newDeviceData;
+      }
+
     getDevicesCount() {
       return this.devices.length;
     }
   }
 
-  const trackedDevices = new TrackedDevices();
+    const trackedDevices = new TrackedDevices();
+
+    function generateDatasetDescription(label, fillcolor, backgroundColor) {
+        return {
+            fill: false,
+            label: label,
+            yAxisID: label,
+            borderColor: fillcolor,
+            pointBoarderColor: fillcolor,
+            backgroundColor: backgroundColor,
+            pointHoverBackgroundColor: fillcolor,
+            pointHoverBorderColor: fillcolor,
+            spanGaps: true,
+        };
+    }
 
   // Define the chart axes
   const chartData = {
-    datasets: [
-      {
-        fill: false,
-        label: 'Temperature',
-        yAxisID: 'Temperature',
-        borderColor: 'rgba(255, 204, 0, 1)',
-        pointBoarderColor: 'rgba(255, 204, 0, 1)',
-        backgroundColor: 'rgba(255, 204, 0, 0.4)',
-        pointHoverBackgroundColor: 'rgba(255, 204, 0, 1)',
-        pointHoverBorderColor: 'rgba(255, 204, 0, 1)',
-        spanGaps: true,
-      },
-      {
-        fill: false,
-        label: 'Humidity',
-        yAxisID: 'Humidity',
-        borderColor: 'rgba(24, 120, 240, 1)',
-        pointBoarderColor: 'rgba(24, 120, 240, 1)',
-        backgroundColor: 'rgba(24, 120, 240, 0.4)',
-        pointHoverBackgroundColor: 'rgba(24, 120, 240, 1)',
-        pointHoverBorderColor: 'rgba(24, 120, 240, 1)',
-        spanGaps: true,
-      }
+      datasets: [
+          generateDatasetDescription('Temperature', 'rgba(255, 204, 0, 1)', 'rgba(255, 204, 0, 0.4)'),
+          generateDatasetDescription('Humidity', 'rgba(24, 120, 240, 1)', 'rgba(24, 120, 240, 0.4)')
     ]
   };
 
@@ -114,6 +117,31 @@ $(document).ready(() => {
     }
   };
 
+  const secondChartData = {
+      datasets: [
+          generateDatasetDescription('Pressure', 'rgba(255, 128, 0, 1)', 'rgba(255, 128, 0, 0.4)')
+    ]
+  };
+
+  const secondChartOptions = {
+    scales: {
+      yAxes: [{
+        id: 'Pressure',
+        type: 'linear',
+        scaleLabel: {
+          labelString: 'Pressure (mm Hg)',
+          display: true,
+        },
+        position: 'left',
+//        ticks: {
+//          suggestedMin: 700,
+//          suggestedMax: 790,
+//          //beginAtZero: true
+//        }
+      }]
+    }
+  };
+
   // Get the context of the canvas element we want to select
   const ctx = document.getElementById('iotChart').getContext('2d');
   const myLineChart = new Chart(
@@ -122,6 +150,15 @@ $(document).ready(() => {
       type: 'line',
       data: chartData,
       options: chartOptions,
+      });
+
+  const ctxPressure = document.getElementById('pressureChart').getContext('2d');
+  const pressureChart = new Chart(
+      ctxPressure,
+    {
+      type: 'line',
+        data: secondChartData,
+        options: secondChartOptions,
     });
 
   // Manage a list of devices in the UI, and update which device data the chart is showing
@@ -135,21 +172,27 @@ $(document).ready(() => {
     chartData.datasets[0].data = device.temperatureData;
     chartData.datasets[1].data = device.humidityData;
     myLineChart.update();
+    secondChartData.labels = device.timeData;
+    secondChartData.datasets[0].data = device.pressureData;
+    pressureChart.update();
   }
     listOfDevices.addEventListener('change', OnSelectionChange, false);
+
+    function storeDeviceData(deviceData, messageData) {
+        deviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal, (messageData.IotData.pressure_internal / 133.3223684));
+    }
 
     function addDataPoint(messageData) {
         // find or add device to list of tracked devices
         const existingDeviceData = trackedDevices.findDevice(messageData.DeviceId);
 
         if (existingDeviceData) {
-            existingDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
+            storeDeviceData(existingDeviceData, messageData);
         } else {
-            const newDeviceData = new DeviceData(messageData.DeviceId);
-            trackedDevices.devices.push(newDeviceData);
+            const newDeviceData = trackedDevices.addDevice(messageData.DeviceId);
             const numDevices = trackedDevices.getDevicesCount();
             deviceCount.innerText = numDevices === 1 ? `${numDevices} device` : `${numDevices} devices`;
-            newDeviceData.addData(messageData.MessageDate, messageData.IotData.temp_internal, messageData.IotData.humidity_internal);
+            storeDeviceData(newDeviceData, messageData);
 
             // add device to the UI list
             const node = document.createElement('option');
@@ -188,6 +231,7 @@ $(document).ready(() => {
                 addDataPoint(messageData);
 
                 myLineChart.update();
+                pressureChart.update();
             } catch (err) {
                 console.error(err);
             }
@@ -205,6 +249,7 @@ $(document).ready(() => {
                 addDataPoint(data);
             }
             myLineChart.update();
+            pressureChart.update();
         }
     }
 
