@@ -49,13 +49,18 @@ async function respondHistoryData(req, res, next) {
     res.json(historicalData || []);
 }
 
+let lastPingRelayServerTime = 0;
+
 function makePingRelayServer() {
     const isPingPossible = !!eventRelyServerUrl;
     if (isPingPossible) {
         superagent.get(eventRelyServerUrl)
             .query({ issued: Date.now() })
-            .end(() => {
+            .end((err) => {
                 console.log(`Ping event relay server [${eventRelyServerUrl}] is completed`);
+                if (!err) {
+                    lastPingRelayServerTime = Date.now();
+                }
             });
     }
     return isPingPossible;
@@ -115,3 +120,8 @@ const eventHubReader = new EventHubReader(iotHubConnectionString, eventHubConsum
 })().catch();
 
 makePingRelayServer();
+setInterval(() => {
+    if ((Date.now() - lastPingRelayServerTime) > 2.5 * 60 * 1000) {
+        makePingRelayServer();
+    }
+}, 3 * 60 * 1000);
