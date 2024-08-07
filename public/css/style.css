@@ -44,3 +44,18 @@ select::-ms-expand {
 select:disabled::-ms-expand {
   background: #f60;
 }
+
+table#historyData {
+    border-collapse: collapse;
+}
+
+table#historyData>thead>tr>th, table#historyData>tbody>tr>td {
+    border-left: 1px solid black;
+    border-right: 1px solid black;
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+table#historyData>tbody>tr>td.number {
+    text-align:right;
+}
