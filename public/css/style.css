@@ -60,6 +60,14 @@ table#historyData>tbody>tr>td.number {
     text-align: right;
 }
 
+table#historyData>tbody tr:nth-child(odd) {
+    background-color: lightgray;
+}
+
+table#historyData>tbody tr:nth-child(even) {
+    background-color: white;
+}
+
 div.filterBlock {
     padding-bottom: 2em;
     text-align: left;

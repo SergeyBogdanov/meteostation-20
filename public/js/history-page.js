@@ -49,7 +49,7 @@ $(document).ready(() => {
     function requestHistoryData(periodStartMs, periodEndMs) {
         const normalizedStartMs = periodStartMs < periodEndMs ? periodStartMs : periodEndMs;
         const normalizedEndMs = periodStartMs < periodEndMs ? periodEndMs : periodStartMs;
-        $.ajax({ url: `/history/${(normalizedEndMs - normalizedStartMs) / (60 * 1000)}` }).done(displayHistoryData);
+        $.ajax({ url: `/deep_history/${normalizedStartMs}-${normalizedEndMs}` }).done(displayHistoryData);
     }
 
     function makeHistoryDataRequest() {
