@@ -1,5 +1,22 @@
 $(document).ready(() => {
 
+    function padStringLeft(str, padSymbol, paddedLength) {
+        str = (str || '').toString();
+        while (str.length < paddedLength) {
+            str = padSymbol + str;
+        }
+        return str;
+    }
+
+    function convertDateToString(date) {
+        return `${date.getFullYear()}-${padStringLeft(date.getMonth() + 1, '0', 2)}-${padStringLeft(date.getDate(), '0', 2)}`;
+    }
+
+    function convertStringToDate(stringDate) {
+        const dateNumber = Date.parse(stringDate);
+        return $.isNumeric(dateNumber) ? new Date(dateNumber) : new Date();
+    }
+
     function convertToMmHg(value) {
         let result = value;
         if ($.isNumeric(value)) {
@@ -35,5 +52,15 @@ $(document).ready(() => {
         $.ajax({ url: `/history/${(normalizedEndMs - normalizedStartMs) / (60 * 1000)}` }).done(displayHistoryData);
     }
 
-    requestHistoryData(Date.now() - (24 * 60 * 60 * 1000), Date.now());
+    function makeHistoryDataRequest() {
+        const fromDate = convertStringToDate($('#fromDate').val());
+        const toDate = new Date(convertStringToDate($('#toDate').val()).getTime() + (24 * 60 * 60 * 1000));
+        requestHistoryData(fromDate.getTime(), toDate.getTime());
+    }
+
+    $('#fromDate').val(convertDateToString(new Date(Date.now() - (24 * 60 * 60 * 1000))));
+    $('#toDate').val(convertDateToString(new Date()));
+    $('#makeRequest').click(makeHistoryDataRequest);
+
+    makeHistoryDataRequest();
 });

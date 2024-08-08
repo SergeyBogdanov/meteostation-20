@@ -57,5 +57,18 @@ table#historyData>thead>tr>th, table#historyData>tbody>tr>td {
 }
 
 table#historyData>tbody>tr>td.number {
-    text-align:right;
+    text-align: right;
+}
+
+div.filterBlock {
+    padding-bottom: 2em;
+    text-align: left;
+}
+
+div.filterBlock>span {
+    padding-right: 2em;
+}
+
+div.filterBlock>span>label {
+    padding-right: 0.5em;
 }

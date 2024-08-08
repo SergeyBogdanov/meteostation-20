@@ -46,13 +46,12 @@ class PersistStorage {
         return payload1.MessageDate === payload2.MessageDate && payload1.DeviceId === payload2.DeviceId;
     }
 
-    async getHistoryData(depthMinutes) {
+    async listTableEntities(mainfilter, dropDuplicates) {
         let result = undefined;
         if (this.client) {
-            let filterDate = new Date(Date.now() - depthMinutes * 60 * 1000);
             const tableEntities = await this.client.listEntities({
                 queryOptions: {
-                    filter: odata`Timestamp ge datetime${filterDate.toJSON()} and PartitionKey eq ${this.entityName}`
+                    filter: mainfilter + odata` and PartitionKey eq ${this.entityName}`
                 }
             });
             result = [];
@@ -60,9 +59,22 @@ class PersistStorage {
                 result.push(JSON.parse(entity.payload));
             }
             result.sort((a, b) => a.MessageDate > b.MessageDate ? 1 : -1);
-            result = result.filter((item, i) => (i + 1) >= result.length || !this.isTheSamePayload(item, result[i + 1]));
+            if (dropDuplicates) {
+                result = result.filter((item, i) => (i + 1) >= result.length || !this.isTheSamePayload(item, result[i + 1]));
+            }
         }
         return result;
+    }
+
+    async getHistoryData(depthMinutes) {
+        let filterDate = new Date(Date.now() - depthMinutes * 60 * 1000);
+        return await this.listTableEntities(odata`Timestamp ge datetime${filterDate.toJSON()}`, true);
+    }
+
+    async getDeepHistoryData(fromMs, toMs) {
+        const fromDate = new Date(fromMs);
+        const toDate = new Date(toMs);
+        return await this.listTableEntities(odata`Timestamp ge datetime${fromDate.toJSON()} and Timestamp le datetime${toDate.toJSON()}`, false);
     }
 
     async deleteOldEntities() {

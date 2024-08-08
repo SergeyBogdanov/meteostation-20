@@ -49,6 +49,16 @@ async function respondHistoryData(req, res, next) {
     res.json(historicalData || []);
 }
 
+async function respondDeepHistoryData(req, res, next) {
+    const historyFrom = parseInt(req.params.from) || 0;
+    const historyTo = parseInt(req.params.to) || 0;
+    let historicalData = undefined;
+    if (historyFrom && historyTo) {
+        historicalData = await storage.getDeepHistoryData(historyFrom, historyTo);
+    }
+    res.json(historicalData || []);
+}
+
 let lastPingRelayServerTime = 0;
 
 function makePingRelayServer() {
@@ -75,6 +85,7 @@ function pingRelayServer(req, res, next) {
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/history/:depth', respondHistoryData);
+app.get('/deep_history/:from-:to', respondDeepHistoryData);
 app.get('/ping_relay', pingRelayServer);
 app.use((req, res /* , next */) => {
   res.redirect('/');
