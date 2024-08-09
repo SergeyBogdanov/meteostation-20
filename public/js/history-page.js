@@ -62,5 +62,5 @@ $(document).ready(() => {
     $('#toDate').val(convertDateToString(new Date()));
     $('#makeRequest').click(makeHistoryDataRequest);
 
-    makeHistoryDataRequest();
+    makeHistoryDataRequest(); //
 });
